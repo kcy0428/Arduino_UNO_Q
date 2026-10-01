@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ToF 3 · I²C Monitor</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0b1320;color:#e7effb}*{box-sizing:border-box}body{max-width:1450px;margin:auto;padding:28px 20px}h1{margin:5px 0;font-size:30px}h2{margin:0;font-size:20px}p{color:#aabbd0;line-height:1.5}.tag{font-size:12px;letter-spacing:2px;color:#61ddc0}.toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:22px 0}select,button{background:#23334b;color:#fff;border:1px solid #526179;border-radius:8px;padding:9px 12px}label{color:#c9d7e9}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.panel{min-width:0;background:#121e2e;border:1px solid #283a50;border-radius:18px;padding:20px}.heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.badge{border:1px solid #526179;padding:6px 10px;border-radius:30px;font-size:12px;white-space:nowrap}.live{color:#67edc7;border-color:#67edc7}.grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;aspect-ratio:1;margin-top:18px}.cell{display:flex;align-items:center;justify-content:center;border-radius:4px;background:#273345;color:white;font-size:clamp(8px,1vw,15px);font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000}.stale{opacity:.35}.detail{min-height:3em;overflow-wrap:anywhere;font-size:13px}.stats{display:grid;grid-template-columns:1fr auto;gap:8px 14px;font-size:14px}.stats dt{color:#aabbd0}.stats dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}.scale{height:12px;margin-top:24px;border-radius:8px;background:linear-gradient(to right,hsl(0 75% 38%),hsl(60 75% 38%),hsl(120 75% 38%),hsl(180 75% 38%),hsl(240 75% 38%))}.labels{display:flex;justify-content:space-between;font-size:12px;color:#aabbd0;margin-top:8px}.hint{font-size:13px}.warning{color:#ffcf85;min-height:2em}.actions{margin-top:16px}@media(max-width:1050px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cell{font-size:clamp(10px,1.8vw,16px)}}@media(max-width:680px){body{padding:20px 12px}.cards{grid-template-columns:1fr}.cell{font-size:clamp(10px,3.5vw,17px)}}
+</style>
+<header><div class="tag">ARDUINO UNO Q / 3 × VL53L8CX</div><h1>ToF 3개 거리 모니터</h1><p>각 센서의 8 × 8 거리 맵을 실시간으로 확인하세요.</p></header>
+<div class="toolbar"><label for="range">색상 표시 범위</label><select id="range"><option value="1000">0–1000 mm</option><option value="2000" selected>0–2000 mm</option><option value="4000">0–4000 mm</option></select><label><input type="checkbox" id="flip"> 좌우 반전</label></div>
+<main id="cards" class="cards"></main>
+<div class="scale"></div><div class="labels"><span>가까움 · 0 mm</span><span id="scaleMax">멀어짐 · 2000 mm</span></div>
+<p class="hint">회색은 유효한 측정값이 없는 영역입니다. 측정이 끊기면 이전 맵이 흐리게 표시됩니다. 셀에 마우스를 올리면 영역 번호와 상태를 볼 수 있습니다.</p>
+<p id="warning" class="warning" role="status"></p>
+<script src="app.js"></script>
+</html>

@@ -1,0 +1,5 @@
+name: ToF 3 I2C Monitor
+icon: 📡
+description: Three VL53L8CX 8x8 distance maps on UNO Q.
+bricks:
+  - arduino:web_ui

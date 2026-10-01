@@ -1,0 +1,586 @@
+<title>ToF 3 신호 경로</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#EDF0EF; --surface:#F8FAF9; --ink:#17212A; --muted:#5A676E; --rule:#C3CCCE; --soft:#DDE3E3;
+  --i2c:#B8336A; --bridge:#2F5FC4; --web:#10836A; --err:#C27A0E; --null:#AEB8BB;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1417; --surface:#151D21; --ink:#E0E7E9; --muted:#8C9AA1; --rule:#2F3B41; --soft:#222C31;
+    --i2c:#EE6A9B; --bridge:#7299F2; --web:#3DC59C; --err:#EBA43A; --null:#3A474D;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1417; --surface:#151D21; --ink:#E0E7E9; --muted:#8C9AA1; --rule:#2F3B41; --soft:#222C31;
+  --i2c:#EE6A9B; --bridge:#7299F2; --web:#3DC59C; --err:#EBA43A; --null:#3A474D;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;padding-inline:20px;padding-block:36px 56px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:40px}
+header{display:grid;gap:10px;max-width:70ch}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.15;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:20px;margin:0;font-weight:600;text-wrap:balance}
+p{margin:0}
+.lede{color:var(--muted);font-size:16px}
+section{display:grid;gap:14px}
+.sec-head{display:grid;gap:4px;max-width:72ch}
+.sec-head p{color:var(--muted)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+button,.seg label{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:7px 14px;cursor:pointer}
+button:hover,.seg label:hover{border-color:var(--muted)}
+button:focus-visible,.seg input:focus-visible+label{outline:2px solid var(--bridge);outline-offset:2px}
+.seg{display:flex;gap:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0;margin-left:-1px}
+.seg label:first-of-type{border-radius:6px 0 0 6px;margin-left:0}
+.seg label:last-of-type{border-radius:0 6px 6px 0}
+.seg input:checked+label{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#fault{border-color:var(--err);color:var(--err)}
+#fault:disabled{opacity:.45;cursor:default}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted);margin-left:auto}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.board{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow-x:auto}
+.board svg{display:block;width:100%;min-width:980px;height:auto}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:14px;color:var(--muted);max-width:80ch}
+
+/* SVG styling */
+.d text{font-family:var(--sans);fill:var(--ink);font-size:13px}
+.d .mono{font-family:var(--mono)}
+.d .sm{font-size:11px}
+.d .mut{fill:var(--muted)}
+.d .b{font-weight:600}
+.d .h{font-size:15px;font-weight:700}
+.d .box{fill:var(--bg);stroke:var(--rule);stroke-width:1.2}
+.d .blk{fill:var(--surface);stroke:var(--rule);stroke-width:1;transition:stroke .25s,fill .25s}
+.d .blk.hot{stroke:var(--ink);stroke-width:1.8}
+.d .blk.hot-err{stroke:var(--err);stroke-width:2}
+.d .band{fill:none;stroke:var(--bridge);stroke-width:1.2;stroke-dasharray:5 5;opacity:.7}
+.d .rail{fill:var(--soft);stroke:var(--i2c);stroke-width:1.2}
+.d .wire{stroke:var(--i2c);stroke-width:2.4;fill:none}
+.d .halo{stroke:var(--bg);stroke-width:8;fill:none}
+.d .lpn{stroke:var(--muted);stroke-width:1.6;stroke-dasharray:4 4;fill:none;transition:stroke .3s}
+.d .lpn.high{stroke:var(--ink);stroke-dasharray:none}
+.d .arr{stroke:var(--muted);stroke-width:1.4;fill:none}
+.d .arr-b{stroke:var(--bridge);stroke-width:1.8;fill:none}
+.d .arr-w{stroke:var(--web);stroke-width:1.8;fill:none}
+.d .head-b{fill:var(--bridge)} .d .head-w{fill:var(--web)} .d .head-m{fill:var(--muted)} .d .head-i{fill:var(--i2c)}
+.d .pk-i{fill:var(--i2c)} .d .pk-b{fill:var(--bridge)} .d .pk-w{fill:var(--web)} .d .pk-s{fill:var(--surface);stroke:var(--bridge);stroke-width:2}
+.d .sensor .box{transition:stroke .3s}
+.d .sensor.err .box{stroke:var(--err);stroke-width:2}
+.d .chip{fill:var(--soft);stroke:none}
+.d .sensor.err .chip{fill:var(--err)}
+.d .sensor.err .chip-t{fill:var(--bg)}
+.d .dim{opacity:.35;transition:opacity .3s}
+.d .live-t{fill:var(--web);font-weight:600}
+.d .err-t{fill:var(--err);font-weight:600}
+.d .node{fill:var(--surface);stroke:var(--rule);stroke-width:1.2;transition:fill .3s,stroke .3s}
+.d .node.on{fill:var(--ink);stroke:var(--ink)}
+.d .node.on.bad{fill:var(--err);stroke:var(--err)}
+.d .node-t{transition:fill .3s}
+.d .node-t.on{fill:var(--bg);font-weight:600}
+.d .drop{stroke:var(--i2c);stroke-width:2.4;transition:opacity .3s}
+.d .drop.off{opacity:.18}
+.d .pill{fill:var(--soft);transition:fill .3s}
+.d .pill.high{fill:var(--ink)}
+.d .pill-t{font-family:var(--mono);font-size:11px;font-weight:600;fill:var(--muted)}
+.d .pill-t.high{fill:var(--bg)}
+.d .addr{font-family:var(--mono);font-size:28px;font-weight:600}
+.d .addr.new{fill:var(--i2c)}
+
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:24px;align-items:start}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:4px;counter-reset:s}
+ol.steps li{counter-increment:s}
+ol.steps button{width:100%;text-align:left;display:grid;grid-template-columns:28px 1fr;gap:8px;border-color:transparent;background:transparent;padding:8px 10px}
+ol.steps button::before{content:counter(s);font-family:var(--mono);font-weight:600;color:var(--muted)}
+ol.steps button[aria-current="step"]{background:var(--surface);border-color:var(--rule)}
+ol.steps button[aria-current="step"]::before{color:var(--i2c)}
+ol.steps code{font-family:var(--mono);font-size:13px}
+
+dl.spec{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:0;margin:0;border-top:1px solid var(--rule)}
+dl.spec div{padding:12px 14px 12px 0;border-bottom:1px solid var(--rule);display:grid;gap:2px}
+dl.spec dt{font-size:13px;color:var(--muted)}
+dl.spec dd{margin:0;font-family:var(--mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+dl.spec dd small{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);display:block}
+.note{font-size:13px;color:var(--muted)}
+@media (max-width:760px){.two{grid-template-columns:1fr}.legend{margin-left:0}}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">tof3-i2c · Arduino UNO Q · VL53L8CX × 3</p>
+  <h1>ToF 3 신호 경로</h1>
+  <p class="lede">센서 세 개가 측정한 8×8 거리 맵이 I²C 버스, MCU 스케치, Router Bridge, Python 앱을 거쳐 웹 화면에 표시되는 과정입니다. <code>sketch.ino</code>, <code>main.py</code>, <code>app.js</code>의 실제 동작을 옮겼고, 거리 값은 예시 데이터입니다.</p>
+</header>
+
+<section aria-labelledby="flow-h">
+  <div class="sec-head">
+    <h2 id="flow-h">전체 데이터 흐름</h2>
+    <p>점 하나가 메시지 하나입니다. 각 센서는 5 Hz로 측정하고, 브라우저는 응답을 받을 때마다 200 ms 뒤에 다시 요청합니다.</p>
+  </div>
+  <div class="controls">
+    <button id="play" type="button">일시정지</button>
+    <div class="seg" role="radiogroup" aria-label="재생 속도">
+      <input type="radio" name="spd" id="spd8" value="0.125"><label for="spd8">1/8배</label>
+      <input type="radio" name="spd" id="spd4" value="0.25" checked><label for="spd4">1/4배</label>
+      <input type="radio" name="spd" id="spd1" value="1"><label for="spd1">실제 속도</label>
+    </div>
+    <button id="fault" type="button">센서 2 통신 오류 재현</button>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--i2c)"></i>I²C 읽기</span>
+      <span><i style="background:var(--bridge)"></i>Bridge 프레임</span>
+      <span><i style="border:2px solid var(--bridge)"></i>Bridge 상태</span>
+      <span><i style="background:var(--web)"></i>HTTP 폴링</span>
+    </div>
+  </div>
+  <figure>
+    <div class="board">
+      <svg id="flow" class="d" viewBox="0 0 1200 530" role="img" aria-label="VL53L8CX 센서 3개가 공유 I²C 버스로 MCU에 연결되고, MCU가 Router Bridge의 tof3_frame과 tof3_status 알림으로 Python 앱에 전달하며, 브라우저가 GET /api/status를 200 ms 간격으로 폴링하는 블록도">
+        <defs>
+          <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="head-b"/></marker>
+          <marker id="mw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="head-w"/></marker>
+          <marker id="mm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" class="head-m"/></marker>
+        </defs>
+
+        <!-- I2C bus -->
+        <text x="238" y="30" text-anchor="middle" class="b sm">I²C 버스</text>
+        <text x="238" y="46" text-anchor="middle" class="mono sm mut">SDA·SCL</text>
+        <rect x="226" y="58" width="24" height="376" rx="4" class="rail"/>
+        <path d="M250 190H330" class="wire"/>
+        <text x="290" y="180" text-anchor="middle" class="mono sm mut">D20·D21</text>
+        <text x="290" y="210" text-anchor="middle" class="mono sm mut">100 kHz</text>
+        <g id="sensors"></g>
+
+        <!-- MCU -->
+        <rect x="330" y="26" width="240" height="488" rx="8" class="box"/>
+        <text x="346" y="54" class="h">MCU</text>
+        <text x="346" y="72" class="mono sm mut">sketch/sketch.ino · Zephyr</text>
+        <g id="mcu"></g>
+
+        <!-- Bridge -->
+        <rect x="588" y="26" width="114" height="488" rx="8" class="band"/>
+        <text x="645" y="54" text-anchor="middle" class="h">Router</text>
+        <text x="645" y="72" text-anchor="middle" class="h">Bridge</text>
+        <text x="645" y="90" text-anchor="middle" class="mono sm mut">RPC · notify</text>
+        <path d="M570 400H718" class="arr-b" marker-end="url(#mb)"/>
+        <path d="M570 470H718" class="arr-b" marker-end="url(#mb)" stroke-dasharray="6 4"/>
+        <text x="645" y="390" text-anchor="middle" class="mono sm b">tof3_frame</text>
+        <text x="645" y="418" text-anchor="middle" class="mono sm mut">(i, JSON)</text>
+        <text x="645" y="460" text-anchor="middle" class="mono sm b">tof3_status</text>
+        <text x="645" y="488" text-anchor="middle" class="mono sm mut">(i, phase, …)</text>
+
+        <!-- MPU -->
+        <rect x="720" y="26" width="220" height="488" rx="8" class="box"/>
+        <text x="736" y="54" class="h">MPU · Linux</text>
+        <text x="736" y="72" class="mono sm mut">python/main.py</text>
+        <g id="mpu"></g>
+
+        <!-- HTTP -->
+        <path d="M1010 108H942" class="arr-w" marker-end="url(#mw)"/>
+        <path d="M940 132H1008" class="arr-w" marker-end="url(#mw)" stroke-dasharray="6 4"/>
+        <text x="975" y="98" text-anchor="middle" class="mono sm b">GET</text>
+        <text x="975" y="150" text-anchor="middle" class="mono sm mut">JSON</text>
+
+        <!-- Browser -->
+        <rect x="1010" y="26" width="172" height="488" rx="8" class="box"/>
+        <text x="1026" y="54" class="h">브라우저</text>
+        <text x="1026" y="72" class="mono sm mut">assets/app.js · :7000</text>
+        <g id="browser"></g>
+        <text x="1026" y="490" class="sm mut">CSV 저장 · 좌우 반전</text>
+
+        <g id="packets"></g>
+      </svg>
+    </div>
+    <figcaption id="flow-cap">MCU만 I²C 버스를 다루고, Python은 Bridge 알림을 받아 상태를 보관하며, 브라우저는 Python이 연 HTTP API만 읽습니다. 센서 2 오류 재현을 누르면 해당 센서의 LPn이 LOW로 내려가고 10초 뒤 재연결하는 동안 나머지 두 센서는 계속 측정합니다.</figcaption>
+  </figure>
+</section>
+
+<section aria-labelledby="state-h">
+  <div class="sec-head">
+    <h2 id="state-h">센서별 연결 상태</h2>
+    <p>센서마다 독립된 상태 머신이 있습니다. 강조된 칸은 위 블록도에서 센서 2의 현재 상태입니다.</p>
+  </div>
+  <figure>
+    <div class="board">
+      <svg id="fsm" class="d" viewBox="0 0 1200 190" role="img" aria-label="waiting에서 checking, initializing, measuring 순서로 진행하고, 실패하면 error로 가서 10초 뒤 checking부터 다시 시도하는 상태 머신">
+        <defs>
+          <marker id="mm2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" class="head-m"/></marker>
+        </defs>
+        <path d="M230 50H290" class="arr" marker-end="url(#mm2)"/>
+        <path d="M500 50H560" class="arr" marker-end="url(#mm2)"/>
+        <path d="M770 50H830" class="arr" marker-end="url(#mm2)"/>
+        <text x="260" y="40" text-anchor="middle" class="mono sm mut">setup()</text>
+        <text x="530" y="40" text-anchor="middle" class="sm mut">ID 확인</text>
+        <text x="800" y="40" text-anchor="middle" class="sm mut">8×8 · 5 Hz</text>
+        <path d="M935 72L760 138" class="arr" marker-end="url(#mm2)"/>
+        <text x="905" y="120" class="sm mut">읽기 실패 · 5 s 무응답</text>
+        <path d="M665 72V128" class="arr" marker-end="url(#mm2)"/>
+        <text x="675" y="106" class="sm mut">단계 실패</text>
+        <path d="M560 150L400 74" class="arr" marker-end="url(#mm2)" stroke-dasharray="5 4"/>
+        <text x="360" y="126" class="sm mut">3 s 뒤 재시도</text>
+        <g id="nodes"></g>
+      </svg>
+    </div>
+  </figure>
+</section>
+
+<section aria-labelledby="addr-h">
+  <div class="sec-head">
+    <h2 id="addr-h">부팅 시 I²C 주소 지정</h2>
+    <p>세 센서는 모두 기본 주소 <code>0x29</code>로 켜집니다. LPn 핀으로 한 번에 한 센서만 버스에 연결해 주소를 바꿉니다.</p>
+  </div>
+  <div class="two">
+    <ol class="steps" id="steps">
+      <li><button type="button"><span>LPn <code>D2·D3·D4</code>를 모두 LOW로 둡니다. 세 센서가 버스에서 분리됩니다.</span></button></li>
+      <li><button type="button"><span><code>D2</code> HIGH. 센서 1이 <code>0x29</code>로 응답하고 ID <code>0xF0/0x0C</code>를 확인한 뒤 <code>0x30</code>으로 바꿉니다.</span></button></li>
+      <li><button type="button"><span><code>D3</code> HIGH. 센서 2가 <code>0x29</code>에서 <code>0x31</code>로 바뀝니다. 센서 1은 이미 <code>0x30</code>이라 겹치지 않습니다.</span></button></li>
+      <li><button type="button"><span><code>D4</code> HIGH. 센서 3이 <code>0x29</code>에서 <code>0x32</code>로 바뀝니다.</span></button></li>
+      <li><button type="button"><span>세 LPn 모두 HIGH 상태로 각자 주소에서 펌웨어를 올리고 측정을 시작합니다.</span></button></li>
+    </ol>
+    <figure>
+      <div class="board">
+        <svg id="addr" class="d" viewBox="0 0 760 230" role="img" aria-label="LPn을 하나씩 HIGH로 올리며 센서 주소를 0x29에서 0x30, 0x31, 0x32로 바꾸는 순서">
+          <text x="24" y="28" class="b sm">I²C 공유 버스</text>
+          <path d="M24 44H736" class="wire"/>
+          <g id="addr-g"></g>
+        </svg>
+      </div>
+      <figcaption>LPn은 I²C 통신만 끊고 칩을 리셋하지 않습니다. 그래서 재연결할 때 스케치는 <code>0x29</code>가 응답하지 않으면 이미 지정된 <code>0x3N</code> 주소로 다시 확인합니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section aria-labelledby="spec-h">
+  <div class="sec-head">
+    <h2 id="spec-h">코드에 정해진 주기와 한계값</h2>
+  </div>
+  <dl class="spec">
+    <div><dt>I²C 클럭</dt><dd>100 kHz<small>Wire.setClock</small></dd></div>
+    <div><dt>측정 주기</dt><dd>5 Hz × 3<small>센서당 200 ms</small></dd></div>
+    <div><dt>프레임 크기</dt><dd>64 영역<small>8×8, 상태 5·9만 거리 표시</small></dd></div>
+    <div><dt>I²C 전송 단위</dt><dd>128 B<small>펌웨어 업로드를 분할</small></dd></div>
+    <div><dt>MCU loop</dt><dd>10 ms<small>data-ready 확인 간격</small></dd></div>
+    <div><dt>상태 하트비트</dt><dd>2 s<small>tof3_status 재전송</small></dd></div>
+    <div><dt>live 판정</dt><dd>&lt; 3 s<small>마지막 프레임 기준</small></dd></div>
+    <div><dt>무측정 오류</dt><dd>5 s<small>fail(…, code 3)</small></dd></div>
+    <div><dt>재연결 간격</dt><dd>3 s<small>오류 센서만 재시도</small></dd></div>
+    <div><dt>브라우저 폴링</dt><dd>200 ms<small>응답 후 대기, 2.5 s 타임아웃</small></dd></div>
+  </dl>
+</section>
+</div>
+
+<script>
+(() => {
+const NS = 'http://www.w3.org/2000/svg';
+const $ = id => document.getElementById(id);
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  if (parent) parent.append(e);
+  return e;
+}
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const N = 3, YC = [100, 270, 440], ADDR = ['0x30', '0x31', '0x32'], PIN = ['D2', 'D3', 'D4'];
+const color = v => v === null ? 'var(--null)' : `hsl(${Math.min(1, v / 2000) * 240} 72% 44%)`;
+
+function grid(parent, x, y, cell) {
+  const g = el('g', {}, parent);
+  const cells = [];
+  for (let z = 0; z < 64; z++)
+    cells.push(el('rect', {x: x + (z & 7) * cell, y: y + (z >> 3) * cell, width: cell - 1, height: cell - 1, rx: 1, fill: 'var(--null)'}, g));
+  return {g, paint: d => d.forEach((v, z) => cells[z].style.fill = color(v))};
+}
+
+// example scene: a wall plus a moving nearby object per sensor
+function scene(k, t) {
+  const out = [], base = [1350, 1700, 980][k];
+  const cx = 3.5 + 3.2 * Math.sin(t / 1700 + k * 2.1), cy = 3.5 + 1.6 * Math.cos(t / 2300 + k);
+  for (let z = 0; z < 64; z++) {
+    const r = z >> 3, c = z & 7, dist = Math.hypot(c - cx, r - cy);
+    let d = base + (7 - r) * 38 + c * 6;
+    if (dist < 1.9) d = 420 + k * 90 + dist * 45;
+    d += Math.sin(t / 90 + z * 1.7) * 6;
+    out.push(((z * 13 + k * 7 + Math.floor(t / 1000)) % 29) === 0 ? null : Math.round(d));
+  }
+  return out;
+}
+
+// ---------- build flow diagram ----------
+const sG = $('sensors'), S = [];
+for (let k = 0; k < N; k++) {
+  const y = YC[k];
+  el('path', {d: `M190 ${y - 24}H226`, class: 'wire'}, sG);
+  el('path', {d: `M330 ${y + 32}H190`, class: 'halo'}, sG);
+  const lpn = el('path', {d: `M330 ${y + 32}H192`, class: 'lpn high'}, sG);
+  const lpnT = el('text', {x: 296, y: y + 24, 'text-anchor': 'middle', class: 'mono sm'}, sG, `LPn ${PIN[k]}`);
+  const g = el('g', {class: 'sensor'}, sG);
+  el('rect', {x: 20, y: y - 62, width: 170, height: 124, rx: 8, class: 'box'}, g);
+  el('text', {x: 34, y: y - 36, class: 'b'}, g, `센서 ${k + 1}`);
+  el('text', {x: 34, y: y - 19, class: 'mono sm mut'}, g, 'VL53L8CX');
+  el('text', {x: 34, y: y + 4, class: 'mono b'}, g, ADDR[k]);
+  const mini = grid(g, 118, y - 44, 7);
+  el('rect', {x: 34, y: y + 24, width: 142, height: 24, rx: 12, class: 'chip'}, g);
+  const chip = el('text', {x: 105, y: y + 40, 'text-anchor': 'middle', class: 'mono sm chip-t'}, g, 'measuring');
+  S.push({g, lpn, lpnT, mini, chip});
+}
+
+const mcuG = $('mcu'), M = {};
+[['conn', 'connectSensor()', 'LPn 순차 HIGH · 0x29 → 0x3N'],
+ ['io', 'readSensor · writeSensor', 'I²C 128 B 단위 전송'],
+ ['loop', 'loop() · 10 ms', 'check_data_ready → get_ranging'],
+ ['fail', 'fail()', 'LPn LOW · 3 s 뒤 재연결'],
+ ['send', 'sendFrame()', '64영역 JSON · 상태 5/9만 거리'],
+ ['rep', 'report()', '상태 알림 · 2 s 하트비트']].forEach(([id, t, s], i) => {
+  const y = 92 + i * 70;
+  M[id] = el('rect', {x: 346, y, width: 208, height: 56, rx: 6, class: 'blk'}, mcuG);
+  el('text', {x: 360, y: y + 23, class: 'mono sm b'}, mcuG, t);
+  el('text', {x: 360, y: y + 42, class: 'sm mut'}, mcuG, s);
+});
+el('path', {d: 'M450 218V230', class: 'arr', 'marker-end': 'url(#mm)'}, mcuG);
+el('path', {d: 'M450 288V302', class: 'arr', 'marker-end': 'url(#mm)'}, mcuG);
+
+const mpuG = $('mpu'), P = {};
+[['web', 'WebUI brick · :7000', 'GET /api/status', 92, 56],
+ ['snap', 'snapshot()', 'live = measuring · 3 s 이내', 162, 56],
+ ['state', 'sensors[3] + lock', '', 232, 126],
+ ['frame', 'on_frame()', '64개 · 타입·범위 검증', 372, 56],
+ ['status', 'on_status()', 'phase · detail · code', 442, 56]].forEach(([id, t, s, y, h]) => {
+  P[id] = el('rect', {x: 734, y, width: 192, height: h, rx: 6, class: 'blk'}, mpuG);
+  el('text', {x: 748, y: y + 23, class: 'mono sm b'}, mpuG, t);
+  if (s) el('text', {x: 748, y: y + 42, class: 'sm mut'}, mpuG, s);
+});
+el('path', {d: 'M830 372V360', class: 'arr', 'marker-end': 'url(#mm)'}, mpuG);
+el('path', {d: 'M830 232V220', class: 'arr', 'marker-end': 'url(#mm)'}, mpuG);
+const rows = [];
+for (let k = 0; k < N; k++) {
+  const y = 280 + k * 24;
+  rows.push({
+    seq: el('text', {x: 748, y, class: 'mono sm'}, mpuG, ''),
+    live: el('text', {x: 912, y, 'text-anchor': 'end', class: 'mono sm'}, mpuG, '')
+  });
+}
+
+const brG = $('browser'), B = [];
+for (let k = 0; k < N; k++) {
+  const y = 118 + k * 118;
+  el('text', {x: 1026, y: y - 8, class: 'sm b'}, brG, `센서 ${k + 1}`);
+  const st = el('text', {x: 1166, y: y - 8, 'text-anchor': 'end', class: 'mono sm'}, brG, '');
+  const gr = grid(brG, 1026, y, 9);
+  const near = el('text', {x: 1112, y: y + 24, class: 'mono sm'}, brG, '');
+  el('text', {x: 1112, y: y + 42, class: 'sm mut'}, brG, '최소 거리');
+  const seq = el('text', {x: 1112, y: y + 66, class: 'mono sm mut'}, brG, '');
+  B.push({st, gr, near, seq});
+}
+
+// packet paths
+const pk = $('packets');
+const path = d => { const p = el('path', {d, fill: 'none', stroke: 'none'}, pk); return {p, len: p.getTotalLength()}; };
+const PATHS = {
+  i2c: YC.map(y => path(`M190 ${y - 24}H238V190H346`)),
+  frame: path('M554 400H734'), status: path('M554 470H734'),
+  req: path('M1010 108H926'), res: path('M926 132H1010')
+};
+
+// ---------- state machine figure ----------
+const nodesG = $('nodes'), NODES = {};
+[['waiting', 20, 28], ['checking', 290, 28], ['initializing', 560, 28], ['measuring', 830, 28], ['error', 560, 128]].forEach(([n, x, y]) => {
+  const r = el('rect', {x, y, width: 210, height: 44, rx: 22, class: 'node' + (n === 'error' ? ' bad' : '')}, nodesG);
+  const t = el('text', {x: x + 105, y: y + 27, 'text-anchor': 'middle', class: 'mono node-t'}, nodesG, n);
+  NODES[n] = [r, t];
+});
+
+// ---------- address figure ----------
+const aG = $('addr-g'), A = [];
+for (let k = 0; k < N; k++) {
+  const x = 24 + k * 248;
+  const drop = el('path', {d: `M${x + 104} 44V78`, class: 'drop'}, aG);
+  el('rect', {x, y: 78, width: 216, height: 128, rx: 8, class: 'box'}, aG);
+  el('text', {x: x + 16, y: 104, class: 'b'}, aG, `센서 ${k + 1}`);
+  const pill = el('rect', {x: x + 118, y: 90, width: 84, height: 22, rx: 11, class: 'pill'}, aG);
+  const pillT = el('text', {x: x + 160, y: 105, 'text-anchor': 'middle', class: 'pill-t'}, aG, '');
+  const addr = el('text', {x: x + 16, y: 160, class: 'addr'}, aG, '');
+  const note = el('text', {x: x + 16, y: 188, class: 'sm mut'}, aG, '');
+  A.push({drop, pill, pillT, addr, note});
+}
+
+// ---------- simulation ----------
+let sim = 0, last = null, playing = !reduce, speed = 0.25;
+const packets = [], timers = new Map();
+const sensor = [0, 1, 2].map(k => ({phase: 'measuring', seq: 1200 + k * 7, next: k * 67, nextStatus: 400 + k * 600, retryAt: 0, stepAt: 0}));
+const mpu = [0, 1, 2].map(k => ({phase: 'measuring', seq: sensor[k].seq, data: scene(k, 0), last: 0}));
+const view = [0, 1, 2].map(k => ({live: true, seq: sensor[k].seq, data: scene(k, 0)}));
+let nextPoll = 0;
+
+function flash(r, cls = 'hot') {
+  r.classList.add(cls);
+  clearTimeout(timers.get(r));
+  timers.set(r, setTimeout(() => r.classList.remove(cls), 280));
+}
+function send(route, cls, dur, onArrive, r = 5) {
+  const c = el('circle', {r, class: cls, cx: -20, cy: -20}, pk);
+  packets.push({route, c, t0: sim, dur, onArrive});
+}
+function sendStatus(k) {
+  const s = sensor[k];
+  s.nextStatus = sim + 2000;
+  flash(M.rep);
+  const phase = s.phase;
+  send(PATHS.status, 'pk-s', 110, () => { flash(P.status); mpu[k].phase = phase; }, 5);
+}
+function setPhase(k, phase) { sensor[k].phase = phase; sendStatus(k); }
+
+function tick(now) {
+  const dt = last === null ? 0 : Math.min(100, now - last);
+  last = now;
+  if (playing) {
+    sim += dt * speed;
+    stepSim();
+    stepAddr(dt);
+  }
+  draw();
+  requestAnimationFrame(tick);
+}
+
+function stepSim() {
+  for (let k = 0; k < N; k++) {
+    const s = sensor[k];
+    if (s.phase === 'measuring' && sim >= s.next) {
+      s.next += 200;
+      if (s.next < sim) s.next = sim + 200;
+      s.seq++;
+      const data = scene(k, sim), seq = s.seq;
+      S[k].mini.paint(data);
+      send(PATHS.i2c[k], 'pk-i', 130, () => {
+        flash(M.io); flash(M.loop); flash(M.send);
+        send(PATHS.frame, 'pk-b', 110, () => {
+          flash(P.frame); flash(P.state);
+          Object.assign(mpu[k], {seq, data, last: sim});
+        });
+      });
+    }
+    if (s.phase === 'error' && sim >= s.retryAt) {
+      flash(M.conn); s.stepAt = sim + 500; setPhase(k, 'checking');
+    } else if (s.phase === 'checking' && sim >= s.stepAt) {
+      s.stepAt = sim + 1200; setPhase(k, 'initializing');
+    } else if (s.phase === 'initializing' && sim >= s.stepAt) {
+      s.next = sim + 200; setPhase(k, 'measuring');
+    }
+    if (sim >= s.nextStatus) sendStatus(k);
+  }
+  if (sim >= nextPoll) {
+    nextPoll = Infinity;
+    send(PATHS.req, 'pk-w', 50, () => {
+      flash(P.web); flash(P.snap);
+      const snap = mpu.map(m => ({seq: m.seq, data: m.data, live: m.phase === 'measuring' && sim - m.last < 3000}));
+      send(PATHS.res, 'pk-w', 50, () => {
+        snap.forEach((v, k) => view[k] = v);
+        nextPoll = sim + 200;
+      });
+    }, 4);
+  }
+  for (let i = packets.length - 1; i >= 0; i--) {
+    const p = packets[i];
+    if (sim - p.t0 >= p.dur) { packets.splice(i, 1); p.c.remove(); p.onArrive(); }
+  }
+}
+
+function draw() {
+  for (const p of packets) {
+    const pt = p.route.p.getPointAtLength(p.route.len * Math.max(0, Math.min(1, (sim - p.t0) / p.dur)));
+    p.c.setAttribute('cx', pt.x); p.c.setAttribute('cy', pt.y);
+  }
+  for (let k = 0; k < N; k++) {
+    const s = sensor[k], v = S[k], err = s.phase === 'error';
+    const high = !err;
+    v.g.classList.toggle('err', err);
+    v.lpn.classList.toggle('high', high);
+    v.lpnT.textContent = `LPn ${PIN[k]} ${high ? 'HIGH' : 'LOW'}`;
+    v.chip.textContent = err ? `재연결 ${Math.max(0, (s.retryAt - sim) / 1000).toFixed(1)} s` : s.phase;
+    v.mini.g.classList.toggle('dim', s.phase !== 'measuring');
+    const m = mpu[k], live = m.phase === 'measuring' && sim - m.last < 3000;
+    rows[k].seq.textContent = `${k + 1}  seq ${m.seq}`;
+    rows[k].live.textContent = live ? '● live' : m.phase;
+    rows[k].live.setAttribute('class', 'mono sm ' + (live ? 'live-t' : 'err-t'));
+    const b = B[k], d = view[k];
+    b.gr.paint(d.data);
+    b.gr.g.classList.toggle('dim', !d.live);
+    b.st.textContent = d.live ? '● 실시간' : '대기';
+    b.st.setAttribute('class', 'mono sm ' + (d.live ? 'live-t' : 'err-t'));
+    const vals = d.data.filter(x => x !== null);
+    b.near.textContent = d.live && vals.length ? `${Math.min(...vals)} mm` : '—';
+    b.seq.textContent = `seq ${d.seq}`;
+  }
+  const cur = sensor[1].phase;
+  for (const n in NODES) {
+    NODES[n][0].classList.toggle('on', n === cur);
+    NODES[n][1].classList.toggle('on', n === cur);
+  }
+  $('fault').disabled = cur !== 'measuring';
+}
+
+$('fault').onclick = () => {
+  const s = sensor[1];
+  if (s.phase !== 'measuring') return;
+  s.retryAt = sim + 3000;
+  flash(M.loop); flash(M.fail, 'hot-err');
+  setPhase(1, 'error');
+};
+$('play').onclick = () => {
+  playing = !playing;
+  $('play').textContent = playing ? '일시정지' : '재생';
+};
+document.querySelectorAll('input[name="spd"]').forEach(r => r.onchange = () => speed = Number(r.value));
+
+// ---------- address sequence ----------
+let aStep = 4, aTime = 0;
+const STEP_MS = 2800;
+const stepBtns = [...document.querySelectorAll('#steps button')];
+stepBtns.forEach((b, i) => b.onclick = () => { aStep = i; aTime = 0; renderAddr(); });
+function stepAddr(dt) {
+  aTime += dt;
+  if (aTime >= STEP_MS) { aTime = 0; aStep = (aStep + 1) % 5; }
+  renderAddr();
+}
+function renderAddr() {
+  const half = aTime > STEP_MS * 0.45;
+  stepBtns.forEach((b, i) => b.toggleAttribute('aria-current', i === aStep) || (i === aStep && b.setAttribute('aria-current', 'step')));
+  stepBtns.forEach((b, i) => i === aStep ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
+  for (let k = 0; k < N; k++) {
+    const a = A[k], active = aStep - 1;
+    let high, addr, note, fresh = false;
+    if (aStep === 0) { high = false; addr = '—'; note = '버스에서 분리됨'; }
+    else if (aStep === 4) { high = true; addr = ADDR[k]; note = '8×8 · 5 Hz 측정'; }
+    else if (k < active) { high = true; addr = ADDR[k]; note = '주소 지정 완료'; }
+    else if (k === active) {
+      high = true;
+      if (half) { addr = ADDR[k]; note = 'vl53l8cx_set_i2c_address'; fresh = true; }
+      else { addr = '0x29'; note = '기본 주소로 응답 · ID 확인'; }
+    } else { high = false; addr = '—'; note = '버스에서 분리됨'; }
+    a.drop.classList.toggle('off', !high);
+    a.pill.classList.toggle('high', high);
+    a.pillT.classList.toggle('high', high);
+    a.pillT.textContent = `${PIN[k]} ${high ? 'HIGH' : 'LOW'}`;
+    a.addr.textContent = addr;
+    a.addr.classList.toggle('new', fresh);
+    a.note.textContent = note;
+  }
+}
+
+// initial resting frame
+for (let k = 0; k < N; k++) S[k].mini.paint(view[k].data);
+if (!playing) $('play').textContent = '재생';
+renderAddr();
+draw();
+requestAnimationFrame(tick);
+})();
+</script>
